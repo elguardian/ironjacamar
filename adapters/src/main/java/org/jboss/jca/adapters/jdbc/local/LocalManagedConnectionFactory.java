@@ -82,7 +82,7 @@ public class LocalManagedConnectionFactory extends BaseWrapperManagedConnectionF
    /** The connection properties */
    protected final Properties connectionProps = new Properties();
 
-   private static Map<String, Driver> driverCache = new ConcurrentHashMap<String, Driver>();
+   private static Map<Class<?>, Driver> driverCache = new ConcurrentHashMap<Class<?>, Driver>();
 
    private static boolean preferDataSourceClass = false;
 
@@ -627,27 +627,25 @@ public class LocalManagedConnectionFactory extends BaseWrapperManagedConnectionF
          throw new ResourceException("No Driver class specified (url = " + url + ")!");
       }
 
-      String driverKey = url.substring(0, url.indexOf(":", 6));
-
-      // Check if the driver is already loaded, if not then try to load it
-      driver = driverCache.get(driverKey);
-      if (driver != null)
-         return driver;
-
       try
       {
          // Load class to trigger static initialization of the driver
          Class<?> clazz = Class.forName(driverClass, true, getClassLoaderPlugin().getClassLoader());
 
+         // Check if the driver is already loaded, if not then try to load it
+         driver = driverCache.get(clazz);
+         if (driver != null)
+            return driver;
+
          if (isDriverLoadedForURL(url))
             return driver;
 
-         driver = (Driver)clazz.newInstance();
+         driver = (Driver) clazz.newInstance();
 
          DriverManager.registerDriver(driver);
          log.debug("Driver loaded and instance created:" + driver);
 
-         driverCache.put(driverKey, driver);
+         driverCache.put(clazz, driver);
       }
       catch (Exception e)
       {
